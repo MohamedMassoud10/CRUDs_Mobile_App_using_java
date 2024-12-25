@@ -12,4 +12,9 @@
     <color name="blue_500">#2196F3</color>
     <color name="orange_500">#FF9800</color>
     <color name="red_500">#F44336</color>
+    <color name="colorPrimary">#6200EE</color>
+    <color name="colorPrimaryDark">#3700B3</color>
+    <color name="colorAccent">#018786</color>
+    <color name="colorError">#CF6679</color>
+    <color name="backgroundGray">#F5F5F5</color>
 </resources>

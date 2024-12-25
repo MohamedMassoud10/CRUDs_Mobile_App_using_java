@@ -1,76 +1,36 @@
 package com.example.myapplication;
 
-import android.content.SharedPreferences;
+import android.content.Intent;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
     DatabaseHelper dbHelper;
     EditText etName, etEmail, etId;
     Button btnInsert, btnView, btnUpdate, btnDelete;
-    TextView tvResult;
+    ListView listView;
+    ArrayList<String> userList;
+    ArrayAdapter<String> adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
-        // Check if the user is logged in
-        if (!isUserLoggedIn()) {
-            // If not logged in, show the login screen
-            showLoginScreen();
-        } else {
-            // If logged in, proceed with the main activity layout
-            setContentView(R.layout.activity_main);
-            initializeViews();
-            setButtonListeners();
-        }
+        initializeViews();
+        setButtonListeners();
     }
 
-    // Check if the user is logged in using SharedPreferences
-    private boolean isUserLoggedIn() {
-        SharedPreferences sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-        return sharedPreferences.getBoolean("isLoggedIn", false);
-    }
-
-    // Save the user's login status
-    private void saveUserLoginStatus(boolean status) {
-        SharedPreferences sharedPreferences = getSharedPreferences("UserPrefs", MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.putBoolean("isLoggedIn", status);
-        editor.apply();
-    }
-
-    // Show the login screen
-    private void showLoginScreen() {
-        setContentView(R.layout.activity_login); // Show login layout
-        EditText etEmail = findViewById(R.id.etEmail);
-        EditText etPassword = findViewById(R.id.etPassword);
-        Button btnLogin = findViewById(R.id.btnLogin);
-
-        btnLogin.setOnClickListener(v -> {
-            String email = etEmail.getText().toString();
-            String password = etPassword.getText().toString();
-
-            // Hardcoded credentials
-            if (email.equals("Massoud@admin.com") && password.equals("Massoud")) {
-                Toast.makeText(MainActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
-                saveUserLoginStatus(true); // Save login status
-                // Restart the activity to show the main layout
-                recreate(); // Recreate the activity after successful login
-            } else {
-                Toast.makeText(MainActivity.this, "Invalid credentials", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    // Initialize the views
     private void initializeViews() {
         dbHelper = new DatabaseHelper(this);
 
@@ -81,22 +41,66 @@ public class MainActivity extends AppCompatActivity {
         btnView = findViewById(R.id.btnView);
         btnUpdate = findViewById(R.id.btnUpdate);
         btnDelete = findViewById(R.id.btnDelete);
-        tvResult = findViewById(R.id.tvResult);
+        listView = findViewById(R.id.listView);
+
+        userList = new ArrayList<>();
+        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, userList);
+        listView.setAdapter(adapter);
+
+        // Add ListView item click listener
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String selectedItem = userList.get(position);
+
+            // Parse the selected item string to get individual values
+            String[] parts = selectedItem.split(",");
+            String userId = parts[0].split(":")[1].trim();
+            String userName = parts[1].split(":")[1].trim();
+            String userEmail = parts[2].split(":")[1].trim();
+
+            // Create intent and pass data
+            Intent intent = new Intent(MainActivity.this, UserDetailsActivity.class);
+            intent.putExtra("USER_ID", userId);
+            intent.putExtra("USER_NAME", userName);
+            intent.putExtra("USER_EMAIL", userEmail);
+            startActivity(intent);
+        });
     }
 
-    // Set the button listeners for Insert, View, Update, Delete
     private void setButtonListeners() {
         btnInsert.setOnClickListener(v -> {
             String name = etName.getText().toString();
             String email = etEmail.getText().toString();
+
+            if (name.isEmpty() || email.isEmpty()) {
+                Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             boolean isInserted = dbHelper.insertData(name, email);
-            showToast(isInserted ? getString(R.string.data_inserted) : getString(R.string.insert_failed));
-            // Immediately update the displayed data after insertion
-            showData();
+            if (isInserted) {
+                Toast.makeText(this, "Data Inserted", Toast.LENGTH_SHORT).show();
+                clearFields();
+            } else {
+                Toast.makeText(this, "Insertion Failed", Toast.LENGTH_SHORT).show();
+            }
         });
 
         btnView.setOnClickListener(v -> {
-            showData(); // Show data immediately after clicking "View All"
+            Cursor cursor = dbHelper.getAllData();
+            if (cursor.getCount() == 0) {
+                Toast.makeText(this, "No Data Found", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            userList.clear();
+            while (cursor.moveToNext()) {
+                String user = "ID: " + cursor.getString(0) +
+                        ", Name: " + cursor.getString(1) +
+                        ", Email: " + cursor.getString(2);
+                userList.add(user);
+            }
+            cursor.close();
+            adapter.notifyDataSetChanged();
         });
 
         btnUpdate.setOnClickListener(v -> {
@@ -104,49 +108,41 @@ public class MainActivity extends AppCompatActivity {
             String name = etName.getText().toString();
             String email = etEmail.getText().toString();
 
-            if (id.isEmpty()) {
-                showToast("Please enter an ID to update");
+            if (id.isEmpty() || name.isEmpty() || email.isEmpty()) {
+                Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             boolean isUpdated = dbHelper.updateData(id, name, email);
-            showToast(isUpdated ? getString(R.string.data_updated) : getString(R.string.update_failed));
-            // Immediately update the displayed data after update
-            showData();
+            if (isUpdated) {
+                Toast.makeText(this, "Data Updated", Toast.LENGTH_SHORT).show();
+                clearFields();
+            } else {
+                Toast.makeText(this, "Update Failed", Toast.LENGTH_SHORT).show();
+            }
         });
 
         btnDelete.setOnClickListener(v -> {
             String id = etId.getText().toString();
 
             if (id.isEmpty()) {
-                showToast("Please enter an ID to delete");
+                Toast.makeText(this, "Please provide an ID", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            int deletedRows = dbHelper.deleteData(id);
-            showToast(deletedRows > 0 ? getString(R.string.data_deleted) : getString(R.string.delete_failed));
-            // Immediately update the displayed data after deletion
-            showData();
+            int rowsDeleted = dbHelper.deleteData(id);
+            if (rowsDeleted > 0) {
+                Toast.makeText(this, "Data Deleted", Toast.LENGTH_SHORT).show();
+                clearFields();
+            } else {
+                Toast.makeText(this, "Deletion Failed", Toast.LENGTH_SHORT).show();
+            }
         });
     }
 
-    // Show data immediately
-    private void showData() {
-        Cursor cursor = dbHelper.getAllData();
-        if (cursor.getCount() == 0) {
-            tvResult.setText(getString(R.string.no_data_found));
-            return;
-        }
-        StringBuilder sb = new StringBuilder();
-        while (cursor.moveToNext()) {
-            sb.append("ID: ").append(cursor.getString(0)).append("\n")
-                    .append("Name: ").append(cursor.getString(1)).append("\n")
-                    .append("Email: ").append(cursor.getString(2)).append("\n\n");
-        }
-        tvResult.setText(sb.toString());
-    }
-
-    private void showToast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    private void clearFields() {
+        etName.setText("");
+        etEmail.setText("");
+        etId.setText("");
     }
 }
