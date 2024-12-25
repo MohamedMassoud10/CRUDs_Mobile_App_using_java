@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">My Application</string>
+    <string name="no_data_found">No data found</string>
+    <string name="data_inserted">Data Inserted</string>
+    <string name="insert_failed">Insert Failed</string>
+    <string name="data_updated">Data Updated</string>
+    <string name="update_failed">Update Failed</string>
+    <string name="data_deleted">Data Deleted</string>
+    <string name="delete_failed">Delete Failed</string>
+</resources>
